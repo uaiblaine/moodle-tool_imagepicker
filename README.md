@@ -91,12 +91,15 @@ $mform->addElement(element::TYPE, 'headerimage', get_string('headerimage', 'your
 ]);
 ```
 
-The element accepts all options of the file manager element plus four of its own:
+The element accepts all options of the file manager element plus five of its own:
 
 * enablecrop (bool): Whether the crop button is shown. Defaults to true. Without it, the element is a plain file manager which is restricted to a single web image.
 * cropaspectratio (float or null): The aspect ratio which the crop selection keeps, given as width divided by height. Defaults to null, which means free cropping.
 * cropmaxwidth (int or null): The largest width of a cropped image, in pixels. Defaults to null, which means no limit.
 * cropmaxheight (int or null): The largest height of a cropped image, in pixels. Defaults to null, which means no limit.
+* cropaspectratios (array of strings): The aspect ratios the user may choose from in the crop dialog, each given as 'W:H' (such as '16:9') or as 'free'. Defaults to none, which leaves the choice out of the dialog.
+
+With cropaspectratios, the crop dialog shows one button per aspect ratio above the image. It starts on the recommended one, which is cropaspectratio ('free' when that is null) and is marked as recommended; if it is missing from the list, it is put first. An image which was cropped before is reopened on the ratio of its stored crop region. Choosing a ratio reshapes the selection to the largest area of that ratio in the middle of the image; choosing 'free' keeps the selection and lets it take any shape. Entries which are not a ratio, and repeated ratios, are dropped, and a list which leaves fewer than two choices shows no buttons. A field for a card cover, for example, takes `'cropaspectratio' => 16 / 9, 'cropaspectratios' => ['16:9', '4:3', '1:1', 'free']`.
 
 The two size limits are meant to be the size at which the image is shown, so that a crop of a large photo is stored at its ideal size rather than at the resolution of the camera. A crop which exceeds a limit is scaled down until it fits inside both, keeping its aspect ratio; a crop which is smaller is never enlarged. The crop dialog tells the user about the limit. The limits are a convenience, not a limit the server enforces: an image which is uploaded and not cropped keeps its size, and a value which is not a positive number counts as no limit. A field for a link preview image, for example, takes `'cropaspectratio' => 1200 / 630, 'cropmaxwidth' => 1200`.
 

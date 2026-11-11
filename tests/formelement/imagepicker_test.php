@@ -236,6 +236,84 @@ final class imagepicker_test extends \advanced_testcase {
     }
 
     /**
+     * Without choices the dialog offers none, and a single valid choice is no choice either.
+     */
+    public function test_no_choice_is_offered_without_two_ratios(): void {
+        $this->resetAfterTest();
+
+        $this->assertSame([], imagepicker::aspect_ratio_choices([], 16 / 9));
+        $this->assertSame([], imagepicker::aspect_ratio_choices(['16:9'], 16 / 9), 'The recommended ratio alone.');
+        $this->assertSame([], imagepicker::aspect_ratio_choices('16:9', null), 'Not a list.');
+    }
+
+    /**
+     * The choices keep their order and labels, drop what is not a ratio or repeats one, and mark the element's own ratio.
+     */
+    public function test_the_choices_mark_the_recommended_ratio(): void {
+        $this->resetAfterTest();
+
+        $choices = imagepicker::aspect_ratio_choices(['free', '1:1', 'wide', '0:1', '2:0', '16:9', '32:18', 7], 16 / 9);
+
+        $this->assertSame(['Free', '1:1', '16:9'], array_column($choices, 'label'));
+        $this->assertSame([null, 1.0, 16 / 9], array_column($choices, 'value'));
+        $this->assertSame([false, false, true], array_column($choices, 'recommended'));
+    }
+
+    /**
+     * A ratio given as a division and the same ratio given as 'W:H' are one choice, so the recommendation finds it.
+     */
+    public function test_a_ratio_matches_within_the_tolerance(): void {
+        $this->resetAfterTest();
+
+        $choices = imagepicker::aspect_ratio_choices(['free', '40:21'], 1200 / 630);
+
+        $this->assertSame([false, true], array_column($choices, 'recommended'));
+        $this->assertSame('40:21', $choices[1]['label']);
+    }
+
+    /**
+     * Free cropping is the recommendation of an element without an aspect ratio, and a recommendation missing from the list
+     * is put first.
+     */
+    public function test_a_missing_recommendation_is_put_first(): void {
+        $this->resetAfterTest();
+
+        $free = imagepicker::aspect_ratio_choices(['1:1', '16:9'], null);
+        $this->assertSame(['Free', '1:1', '16:9'], array_column($free, 'label'));
+        $this->assertTrue($free[0]['recommended']);
+
+        $wide = imagepicker::aspect_ratio_choices(['free', '1:1'], 2.5);
+        $this->assertSame(2.5, $wide[0]['value']);
+        $this->assertTrue($wide[0]['recommended']);
+        $this->assertSame(format_float(2.5, 2) . ':1', $wide[0]['label']);
+    }
+
+    /**
+     * The choices reach the JavaScript, with their labels and the recommended one.
+     */
+    public function test_the_choices_are_handed_to_the_javascript(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $config = $this->render_and_get_js_config(['cropaspectratio' => 1, 'cropaspectratios' => ['free', '1:1', '4:3']]);
+        $this->assertSame(['Free', '1:1', '4:3'], array_column($config['aspectratios'], 'label'));
+        $this->assertSame([false, true, false], array_column($config['aspectratios'], 'recommended'));
+    }
+
+    /**
+     * An element without choices hands the JavaScript an empty list, and keeps its fixed ratio.
+     */
+    public function test_an_element_without_choices_hands_over_none(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $config = $this->render_and_get_js_config(['cropaspectratio' => 1.5]);
+
+        $this->assertSame([], $config['aspectratios']);
+        $this->assertSame(1.5, $config['cropaspectratio']);
+    }
+
+    /**
      * Saved settings (including an out of range quality) reach the JavaScript in a usable form.
      */
     public function test_saved_settings_are_handed_to_the_javascript(): void {

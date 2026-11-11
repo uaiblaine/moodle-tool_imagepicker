@@ -52,6 +52,10 @@ require_once($CFG->dirroot . '/lib/form/filemanager.php');
  * - 'cropaspectratio' (float|null) The aspect ratio to enforce when cropping. Defaults to null (free cropping).
  * - 'cropmaxwidth'    (int|null)   The largest width, in pixels, of a cropped image. Defaults to null (no limit).
  * - 'cropmaxheight'   (int|null)   The largest height, in pixels, of a cropped image. Defaults to null (no limit).
+ * - 'cropaspectratios' (string[])  The aspect ratios the user may choose from in the crop dialog, each 'W:H' (such as
+ *                                  '16:9') or 'free'. Defaults to none, which leaves the choice out: the selection keeps
+ *                                  'cropaspectratio', or is free without one. With choices, 'cropaspectratio' is the
+ *                                  recommended one, preselected and marked as such ('free' when it is null).
  *
  * The two size limits are the size the image is displayed at, so that a crop comes out at its ideal size rather than at the
  * resolution of the photo it was taken from. A crop is scaled down to fit inside both, never up. They are a convenience for
@@ -80,7 +84,14 @@ class imagepicker extends MoodleQuickForm_filemanager {
         'cropaspectratio' => null,
         'cropmaxwidth' => null,
         'cropmaxheight' => null,
+        'cropaspectratios' => [],
     ];
+
+    /** @var string The entry of 'cropaspectratios' which stands for free cropping. */
+    const RATIO_FREE = 'free';
+
+    /** @var float How far two aspect ratios may differ and still be the same one (a ratio given as 1200 / 630 vs '40:21'). */
+    const RATIO_TOLERANCE = 0.005;
 
     /**
      * Constructor.
@@ -188,6 +199,10 @@ class imagepicker extends MoodleQuickForm_filemanager {
                 'cropaspectratio' => $this->imagepickeroptions['cropaspectratio'],
                 'cropmaxwidth' => self::positive_or_null($this->imagepickeroptions['cropmaxwidth']),
                 'cropmaxheight' => self::positive_or_null($this->imagepickeroptions['cropmaxheight']),
+                'aspectratios' => self::aspect_ratio_choices(
+                    $this->imagepickeroptions['cropaspectratios'],
+                    $this->imagepickeroptions['cropaspectratio']
+                ),
                 'acceptedtypes' => $typesutil->expand($this->_options['accepted_types']),
                 'preserveoriginals' => originals::is_enabled(),
                 'encodingquality' => self::get_encoding_quality() / 100,
@@ -196,6 +211,83 @@ class imagepicker extends MoodleQuickForm_filemanager {
         ]);
 
         return $context;
+    }
+
+    /**
+     * The aspect ratio choices as the crop dialog takes them: a label, the ratio (null for free) and whether it is the
+     * recommended one.
+     *
+     * An entry which is neither 'free' nor two positive numbers around a colon is dropped, and so is a repeated ratio. The
+     * recommended choice is the one equal to the element's own aspect ratio (within RATIO_TOLERANCE), or 'free' when the
+     * element has none; one that is missing from the list is put first, labelled with the ratio to two decimals. Fewer than
+     * two choices are no choice at all, so the list is then empty and the dialog shows no buttons.
+     *
+     * @param mixed $choices The 'cropaspectratios' option as the caller gave it.
+     * @param mixed $recommended The 'cropaspectratio' option: the ideal ratio of the field, or null.
+     * @return array List of ['label' => string, 'value' => float|null, 'recommended' => bool].
+     */
+    public static function aspect_ratio_choices($choices, $recommended): array {
+        $recommended = is_numeric($recommended) && (float) $recommended > 0 ? (float) $recommended : null;
+        $entries = [];
+        foreach (is_array($choices) ? $choices : [] as $choice) {
+            $value = self::parse_ratio($choice);
+            if ($value === false) {
+                continue;
+            }
+            foreach ($entries as $entry) {
+                if (self::same_ratio($entry['value'], $value)) {
+                    continue 2;
+                }
+            }
+            $label = $value === null ? get_string('ratio_free', 'tool_imagepicker') : trim((string) $choice);
+            $entries[] = ['label' => $label, 'value' => $value, 'recommended' => self::same_ratio($value, $recommended)];
+        }
+        if (!$entries) {
+            return [];
+        }
+        if (!in_array(true, array_column($entries, 'recommended'), true)) {
+            $label = $recommended === null
+                ? get_string('ratio_free', 'tool_imagepicker')
+                : format_float($recommended, 2) . ':1';
+            array_unshift($entries, ['label' => $label, 'value' => $recommended, 'recommended' => true]);
+        }
+
+        return count($entries) > 1 ? $entries : [];
+    }
+
+    /**
+     * Read one aspect ratio choice.
+     *
+     * @param mixed $choice 'free', or 'W:H' with two positive numbers.
+     * @return float|null|false The ratio, null for free, or false for an entry which is neither.
+     */
+    protected static function parse_ratio($choice) {
+        if (!is_string($choice)) {
+            return false;
+        }
+        $choice = trim($choice);
+        if ($choice === self::RATIO_FREE) {
+            return null;
+        }
+        if (!preg_match('/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/', $choice, $matches) || (float) $matches[2] <= 0) {
+            return false;
+        }
+        $ratio = (float) $matches[1] / (float) $matches[2];
+        return $ratio > 0 ? $ratio : false;
+    }
+
+    /**
+     * Whether two aspect ratios are the same one: both free, or within RATIO_TOLERANCE of each other.
+     *
+     * @param float|null $a A ratio, or null for free.
+     * @param float|null $b A ratio, or null for free.
+     * @return bool
+     */
+    protected static function same_ratio(?float $a, ?float $b): bool {
+        if ($a === null || $b === null) {
+            return $a === $b;
+        }
+        return abs($a - $b) <= self::RATIO_TOLERANCE * max($a, $b);
     }
 
     /**

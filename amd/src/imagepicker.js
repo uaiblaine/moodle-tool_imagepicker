@@ -132,6 +132,8 @@ class ReductionError extends Error {
  * @param {Number|null} config.cropaspectratio The aspect ratio to enforce when cropping (null for free cropping).
  * @param {Number|null} config.cropmaxwidth The largest width of a cropped image, in pixels (null for no limit).
  * @param {Number|null} config.cropmaxheight The largest height of a cropped image, in pixels (null for no limit).
+ * @param {Object[]} config.aspectratios The aspect ratios the user may choose from ('label', 'value' with null for free,
+ *                                       'recommended'); empty when the dialog offers no choice.
  * @param {String[]} config.acceptedtypes The file types which the form element accepts.
  * @param {Boolean} config.preserveoriginals Whether the site preserves the uncropped original of a cropped image.
  * @param {Number} config.encodingquality The quality (0..1) with which a cropped image is encoded (for lossy formats).
@@ -568,10 +570,14 @@ const openCropperModal = async(filemanager, elementid, config) => {
         // Fit the image into the canvas and freeze it there.
         cropperimage.$center('contain');
         freezeImage(cropperimage, true);
-        // Enforce a fixed aspect ratio if configured.
-        if (config.cropaspectratio) {
-            cropperselection.aspectRatio = config.cropaspectratio;
+        // Enforce the aspect ratio the dialog starts on, if there is one: the element's fixed one, or the choice which is
+        // preselected (see getInitialChoice()). The buttons change it from then on.
+        const choice = getInitialChoice(config, image.crop, dimensions);
+        const initialratio = choice === null ? config.cropaspectratio : config.aspectratios[choice].value;
+        if (initialratio) {
+            cropperselection.aspectRatio = initialratio;
         }
+        armRatioChoices(body, cropper, config, choice);
         // Restore the last crop region, if one is stored. The cropper defers parts of its own initial layout work to
         // later ticks (the side effects of centering the image, and the initial selection, which it recomputes once the
         // aspect ratio has been set above), so the stored region is applied two frames later to make sure that it lands
@@ -649,6 +655,13 @@ const buildCropperBody = async(prepared, config) => {
     const notice = await getCropNotice(prepared.sourcefilename, prepared.animated);
     if (notice) {
         body.append($('<div class="alert alert-info small px-3 py-2 tool-imagepicker-notice" role="alert"></div>').text(notice));
+    }
+
+    // The aspect ratios the user may choose from, above the image. Every choice is a toggle button; the one which is
+    // pressed is the ratio the selection keeps. Which one starts pressed is decided once the cropper is there
+    // (see armRatioChoices()).
+    if (config.aspectratios && config.aspectratios.length) {
+        body.append(await buildRatioChoices(config.aspectratios));
     }
 
     // The image which the cropper is set up on. What it shows is the prepared image, i.e. the still of an animated one.
@@ -1103,6 +1116,123 @@ const getEncoding = (filename) => ENCODING_BY_EXTENSION[splitFilename(filename).
  * @return {String} The file name of the cropped image.
  */
 const getOutputFilename = (filename) => splitFilename(filename).basename + getEncoding(filename).extension;
+
+/**
+ * Build the row of aspect ratio choices shown above the image.
+ *
+ * @param {Object[]} choices The choices ('label', 'value', 'recommended').
+ * @return {Promise<jQuery>} The row. Each button carries its index in data-ratio-index.
+ */
+const buildRatioChoices = async(choices) => {
+    const [label, recommended] = await getStrings([
+        {key: 'ratio_label', component: 'tool_imagepicker'},
+        {key: 'ratio_recommended', component: 'tool_imagepicker'},
+    ]);
+    const row = $('<div class="tool-imagepicker-ratios d-flex flex-wrap align-items-center mb-2" role="group"></div>')
+        .attr('aria-label', label);
+    row.append($('<span class="tool-imagepicker-ratios-label small me-2"></span>').text(label));
+    choices.forEach((choice, index) => {
+        const button = $('<button type="button" class="btn btn-sm btn-outline-secondary me-1 mb-1" aria-pressed="false"></button>')
+            .attr('data-ratio-index', index)
+            .text(choice.label);
+        if (choice.recommended) {
+            button.append(' ').append($('<span class="badge bg-success text-white"></span>').text(recommended));
+        }
+        row.append(button);
+    });
+    return row;
+};
+
+/**
+ * Decide which aspect ratio choice the dialog starts on.
+ *
+ * An image cropped before is reopened on the choice its stored region has, so that the user sees the shape they chose;
+ * every other image starts on the recommended one.
+ *
+ * @param {Object} config The element configuration.
+ * @param {Object|null} crop The stored crop region as fractions of the image, if there is one.
+ * @param {Object} dimensions The natural 'width' and 'height' of the source image.
+ * @return {Number|null} The index of the choice, or null when the dialog offers none.
+ */
+const getInitialChoice = (config, crop, dimensions) => {
+    const choices = config.aspectratios || [];
+    if (!choices.length) {
+        return null;
+    }
+    const recommended = Math.max(0, choices.findIndex((choice) => choice.recommended));
+    if (!crop || !crop.width || !crop.height || !dimensions.width || !dimensions.height) {
+        return recommended;
+    }
+    const stored = (crop.width * dimensions.width) / (crop.height * dimensions.height);
+    const same = choices.findIndex((choice) => choice.value && Math.abs(choice.value - stored) <= 0.01 * choice.value);
+    if (same >= 0) {
+        return same;
+    }
+    // A stored region of no offered ratio was cropped freely, so it is shown as such where free cropping is offered.
+    const free = choices.findIndex((choice) => !choice.value);
+    return free >= 0 ? free : recommended;
+};
+
+/**
+ * Wire the aspect ratio buttons to the cropper: mark the pressed one, and reshape the selection on a choice.
+ *
+ * @param {jQuery} body The modal body which holds the buttons.
+ * @param {Object} cropper The cropper instance.
+ * @param {Object} config The element configuration.
+ * @param {Number|null} initial The index of the choice the dialog starts on.
+ */
+const armRatioChoices = (body, cropper, config, initial) => {
+    const buttons = body.find('[data-ratio-index]');
+    if (!buttons.length) {
+        return;
+    }
+    const press = (index) => {
+        buttons.each((i, button) => {
+            const pressed = Number(button.dataset.ratioIndex) === index;
+            button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+            button.classList.toggle('active', pressed);
+        });
+    };
+    press(initial);
+    buttons.on('click', (event) => {
+        const index = Number(event.currentTarget.dataset.ratioIndex);
+        press(index);
+        applyRatio(cropper, config.aspectratios[index].value);
+    });
+};
+
+/**
+ * Make the selection keep the given aspect ratio, reshaped to the largest area of it centred on the image.
+ *
+ * Free cropping keeps the selection as it is and only stops holding its shape.
+ *
+ * @param {Object} cropper The cropper instance.
+ * @param {Number|null} ratio The aspect ratio, or null for free cropping.
+ */
+const applyRatio = (cropper, ratio) => {
+    const selection = cropper.getCropperSelection();
+    selection.aspectRatio = ratio || NaN;
+    if (!ratio) {
+        return;
+    }
+    const bounds = getImageBounds(cropper);
+    if (!bounds) {
+        return;
+    }
+    const width = Math.min(bounds.right - bounds.left, (bounds.bottom - bounds.top) * ratio);
+    const height = width / ratio;
+    const centred = {
+        x: bounds.left + (bounds.right - bounds.left - width) / 2,
+        y: bounds.top + (bounds.bottom - bounds.top - height) / 2,
+        width,
+        height,
+    };
+    const fitted = shrinkIntoBounds({...centred, x: Math.ceil(centred.x), y: Math.ceil(centred.y)}, bounds, ratio);
+    if (fitted) {
+        // Made without an aspect ratio, as limitSelectionToImage() does: the rectangle has it already.
+        selection.$change(fitted.x, fitted.y, fitted.width, fitted.height, NaN);
+    }
+};
 
 /**
  * Determine the output size which the cropped image has to be rendered at.

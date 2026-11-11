@@ -4,6 +4,10 @@ moodle-tool_imagepicker
 Changes
 -------
 
+### v5.3-r2 (fork)
+
+* 2026-11-11 - New element option cropaspectratios: the crop dialog offers a choice of aspect ratios, starts on the recommended one (cropaspectratio) and marks it, and reopens a cropped image on the ratio of its stored region. The demo page has a field which uses it.
+
 ### v5.3-r1 (fork)
 
 * 2026-11-11 - Support Moodle 5.1, 5.2 and 5.3 (`$plugin->supported = [500, 503]`).
