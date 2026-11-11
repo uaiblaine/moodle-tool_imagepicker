@@ -58,6 +58,7 @@ class demo_form extends moodleform {
         'imagepickerjpeg' => 3,
         'imagepickernocrop' => 4,
         'imagepickersized' => 5,
+        'imagepickerratios' => 6,
     ];
 
     /**
@@ -83,6 +84,14 @@ class demo_form extends moodleform {
                 return [
                     'maxbytes' => $CFG->maxbytes,
                     'accepted_types' => ['.jpg', '.jpeg', '.jpe', '.pdf'],
+                ];
+            case 'imagepickerratios':
+                // The image picker element, with a choice of aspect ratios of which 16:9 is the recommended one.
+                return [
+                    'maxbytes' => $CFG->maxbytes,
+                    'accepted_types' => 'web_image',
+                    'cropaspectratio' => 16 / 9,
+                    'cropaspectratios' => ['free', '1:1', '16:9'],
                 ];
             case 'imagepickersized':
                 // The image picker element, with a size limit for cropped images. The limit is smaller than every fixture,
@@ -178,6 +187,18 @@ class demo_form extends moodleform {
             get_string('demo_imagesized', 'tool_imagepicker'),
             null,
             self::get_field_options('imagepickersized')
+        );
+
+        // Section 6: The image picker element with a choice of aspect ratios.
+        $mform->addElement('header', 'imagepickerratiosheader', get_string('demo_imagepickerratios', 'tool_imagepicker'));
+        $mform->setExpanded('imagepickerratiosheader');
+        $mform->addElement('static', 'imagepickerratiosdesc', '', get_string('demo_imagepickerratios_desc', 'tool_imagepicker'));
+        $mform->addElement(
+            element::TYPE,
+            'imagepickerratios',
+            get_string('demo_imageratios', 'tool_imagepicker'),
+            null,
+            self::get_field_options('imagepickerratios')
         );
 
         // Action buttons.
