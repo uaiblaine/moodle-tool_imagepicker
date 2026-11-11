@@ -1135,8 +1135,16 @@ const getOutputSize = (crop, dimensions, config) => {
         factor = Math.min(factor, config.cropmaxheight / height);
     }
 
-    // Rounded down when scaled, so that the result never exceeds a limit by a rounding pixel.
-    return {width: factor < 1 ? Math.max(1, Math.floor(width * factor)) : Math.round(width)};
+    // Rounded, then held to each limit: a selection a fraction of a pixel short of the source's width must still come
+    // out at the limit itself (1200, not 1199), and the height the cropper derives from the width must not pass its own.
+    let output = Math.round(width * factor);
+    if (config.cropmaxwidth) {
+        output = Math.min(output, config.cropmaxwidth);
+    }
+    if (config.cropmaxheight && Math.round(output * height / width) > config.cropmaxheight) {
+        output = Math.floor(config.cropmaxheight * width / height);
+    }
+    return {width: Math.max(1, output)};
 };
 
 /**
