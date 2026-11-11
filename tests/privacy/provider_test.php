@@ -26,6 +26,7 @@
 namespace tool_imagepicker\privacy;
 
 use core_privacy\local\metadata\null_provider;
+use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests for the privacy provider.
@@ -34,9 +35,8 @@ use core_privacy\local\metadata\null_provider;
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\privacy\provider
  */
+#[CoversClass(\tool_imagepicker\privacy\provider::class)]
 final class provider_test extends \advanced_testcase {
     /**
      * The plugin declares that it stores no personal data, and explains why with a string which exists.

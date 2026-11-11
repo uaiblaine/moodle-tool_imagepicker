@@ -57,6 +57,7 @@ class demo_form extends moodleform {
         'imagepickerratio' => 2,
         'imagepickerjpeg' => 3,
         'imagepickernocrop' => 4,
+        'imagepickersized' => 5,
     ];
 
     /**
@@ -82,6 +83,15 @@ class demo_form extends moodleform {
                 return [
                     'maxbytes' => $CFG->maxbytes,
                     'accepted_types' => ['.jpg', '.jpeg', '.jpe', '.pdf'],
+                ];
+            case 'imagepickersized':
+                // The image picker element, with a size limit for cropped images. The limit is smaller than every fixture,
+                // so that a crop of any of them is reduced.
+                return [
+                    'maxbytes' => $CFG->maxbytes,
+                    'accepted_types' => 'web_image',
+                    'cropmaxwidth' => 200,
+                    'cropmaxheight' => 100,
                 ];
             case 'imagepickernocrop':
                 // The image picker element without the crop button, which makes it a plain file manager for a single web
@@ -156,6 +166,18 @@ class demo_form extends moodleform {
             get_string('demo_imagenocrop', 'tool_imagepicker'),
             null,
             self::get_field_options('imagepickernocrop')
+        );
+
+        // Section 5: The image picker element with a size limit for cropped images.
+        $mform->addElement('header', 'imagepickersizedheader', get_string('demo_imagepickersized', 'tool_imagepicker'));
+        $mform->setExpanded('imagepickersizedheader');
+        $mform->addElement('static', 'imagepickersizeddesc', '', get_string('demo_imagepickersized_desc', 'tool_imagepicker'));
+        $mform->addElement(
+            element::TYPE,
+            'imagepickersized',
+            get_string('demo_imagesized', 'tool_imagepicker'),
+            null,
+            self::get_field_options('imagepickersized')
         );
 
         // Action buttons.

@@ -26,6 +26,8 @@
 namespace tool_imagepicker\local;
 
 use tool_imagepicker_generator as generator;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Tests for the preserved originals handling.
@@ -34,9 +36,8 @@ use tool_imagepicker_generator as generator;
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\local\originals
  */
+#[CoversClass(\tool_imagepicker\local\originals::class)]
 final class originals_test extends \advanced_testcase {
     /** @var generator The plugin generator. */
     private generator $generator;
@@ -144,8 +145,8 @@ final class originals_test extends \advanced_testcase {
      *
      * @param string $source The source field of the draft file.
      * @param bool $debugging Whether a debugging message is expected.
-     * @dataProvider unusable_source_provider
      */
+    #[DataProvider('unusable_source_provider')]
     public function test_resolve_place_falls_back_to_the_draft_area_for_an_unusable_source(string $source, bool $debugging): void {
         $this->resetAfterTest();
         $this->setUser($this->getDataGenerator()->create_user());

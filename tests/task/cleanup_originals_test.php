@@ -27,6 +27,7 @@ namespace tool_imagepicker\task;
 
 use tool_imagepicker_generator as generator;
 use tool_imagepicker\local\originals;
+use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests for the scheduled clean up of orphaned originals.
@@ -35,9 +36,8 @@ use tool_imagepicker\local\originals;
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\task\cleanup_originals
  */
+#[CoversClass(\tool_imagepicker\task\cleanup_originals::class)]
 final class cleanup_originals_test extends \advanced_testcase {
     /** @var generator The plugin generator. */
     private generator $generator;

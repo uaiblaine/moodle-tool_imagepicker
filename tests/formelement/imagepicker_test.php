@@ -26,6 +26,8 @@
 namespace tool_imagepicker\formelement;
 
 use tool_imagepicker\element;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -39,9 +41,8 @@ require_once($CFG->libdir . '/formslib.php');
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\formelement\imagepicker
  */
+#[CoversClass(\tool_imagepicker\formelement\imagepicker::class)]
 final class imagepicker_test extends \advanced_testcase {
     /**
      * Render a form which holds an image picker element with the given options, and return the JavaScript which the page
@@ -117,8 +118,8 @@ final class imagepicker_test extends \advanced_testcase {
      *
      * @param string|null $setting The setting value, or null if the setting was never saved.
      * @param int $expected The resulting quality.
-     * @dataProvider encoding_quality_provider
      */
+    #[DataProvider('encoding_quality_provider')]
     public function test_the_encoding_quality_is_kept_within_range(?string $setting, int $expected): void {
         $this->resetAfterTest();
 
@@ -150,8 +151,8 @@ final class imagepicker_test extends \advanced_testcase {
      *
      * @param string|null $setting The setting value, or null if the setting was never saved.
      * @param string $expected The resulting strategy.
-     * @dataProvider size_limit_strategy_provider
      */
+    #[DataProvider('size_limit_strategy_provider')]
     public function test_the_size_limit_strategy_falls_back_to_scaling_down(?string $setting, string $expected): void {
         $this->resetAfterTest();
 
@@ -179,6 +180,59 @@ final class imagepicker_test extends \advanced_testcase {
         $this->assertTrue($config['enablecrop']);
         $this->assertSame(1.5, $config['cropaspectratio']);
         $this->assertEqualsCanonicalizing(['.png', '.jpg'], $config['acceptedtypes']);
+    }
+
+    /**
+     * Data provider: crop size limits as a caller may give them, and the limit the client is handed.
+     *
+     * @return array
+     */
+    public static function crop_size_limit_provider(): array {
+        return [
+            'not given' => [null, null],
+            'whole number' => [1200, 1200],
+            'numeric string' => ['630', 630],
+            'decimal' => [99.9, 99],
+            'one pixel' => [1, 1],
+            'zero' => [0, null],
+            'negative' => [-200, null],
+            'not a number' => ['wide', null],
+        ];
+    }
+
+    /**
+     * The crop size limits reach the JavaScript as whole numbers of pixels, or as null for no limit.
+     *
+     * @param mixed $given The option as the caller gives it, or null to leave it out.
+     * @param int|null $expected The limit the client is handed.
+     */
+    #[DataProvider('crop_size_limit_provider')]
+    public function test_the_crop_size_limits_are_handed_to_the_javascript($given, ?int $expected): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $options = $given === null ? [] : ['cropmaxwidth' => $given, 'cropmaxheight' => $given];
+        $config = $this->render_and_get_js_config($options);
+
+        $this->assertArrayHasKey('cropmaxwidth', $config);
+        $this->assertArrayHasKey('cropmaxheight', $config);
+        $this->assertSame($expected, $config['cropmaxwidth']);
+        $this->assertSame($expected, $config['cropmaxheight']);
+    }
+
+    /**
+     * The two crop size limits are independent: a width alone leaves the height unlimited, and they never reach the file
+     * manager as options of its own.
+     */
+    public function test_the_crop_size_limits_are_independent(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $config = $this->render_and_get_js_config(['cropmaxwidth' => 1200, 'cropaspectratio' => 1200 / 630]);
+
+        $this->assertSame(1200, $config['cropmaxwidth']);
+        $this->assertNull($config['cropmaxheight']);
+        $this->assertSame(1200 / 630, $config['cropaspectratio']);
     }
 
     /**

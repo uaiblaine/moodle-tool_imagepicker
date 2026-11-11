@@ -50,6 +50,12 @@ require_once($CFG->dirroot . '/lib/form/filemanager.php');
  * In addition to the inherited file manager options, this element accepts the following options:
  * - 'enablecrop'      (bool)       Whether the crop button is shown. Defaults to true.
  * - 'cropaspectratio' (float|null) The aspect ratio to enforce when cropping. Defaults to null (free cropping).
+ * - 'cropmaxwidth'    (int|null)   The largest width, in pixels, of a cropped image. Defaults to null (no limit).
+ * - 'cropmaxheight'   (int|null)   The largest height, in pixels, of a cropped image. Defaults to null (no limit).
+ *
+ * The two size limits are the size the image is displayed at, so that a crop comes out at its ideal size rather than at the
+ * resolution of the photo it was taken from. A crop is scaled down to fit inside both, never up. They are a convenience for
+ * the user, not a limit the server enforces: an upload which is not cropped keeps its size.
  *
  * @package    tool_imagepicker
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
@@ -72,6 +78,8 @@ class imagepicker extends MoodleQuickForm_filemanager {
     protected $imagepickeroptions = [
         'enablecrop' => true,
         'cropaspectratio' => null,
+        'cropmaxwidth' => null,
+        'cropmaxheight' => null,
     ];
 
     /**
@@ -178,6 +186,8 @@ class imagepicker extends MoodleQuickForm_filemanager {
             [
                 'enablecrop' => (bool) $this->imagepickeroptions['enablecrop'],
                 'cropaspectratio' => $this->imagepickeroptions['cropaspectratio'],
+                'cropmaxwidth' => self::positive_or_null($this->imagepickeroptions['cropmaxwidth']),
+                'cropmaxheight' => self::positive_or_null($this->imagepickeroptions['cropmaxheight']),
                 'acceptedtypes' => $typesutil->expand($this->_options['accepted_types']),
                 'preserveoriginals' => originals::is_enabled(),
                 'encodingquality' => self::get_encoding_quality() / 100,
@@ -186,6 +196,23 @@ class imagepicker extends MoodleQuickForm_filemanager {
         ]);
 
         return $context;
+    }
+
+    /**
+     * A size limit as the client takes it: a positive whole number of pixels, or null for no limit.
+     *
+     * Anything which is not a number of at least one pixel (null, zero, a negative number, a string which is not numeric) is
+     * no limit, so that a careless caller gets the element's behaviour without a limit rather than an image of no size.
+     *
+     * @param mixed $value The option as the caller gave it.
+     * @return int|null The limit in pixels, or null.
+     */
+    protected static function positive_or_null($value): ?int {
+        if (!is_numeric($value) || (int) $value < 1) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     /**

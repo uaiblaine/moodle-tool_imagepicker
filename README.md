@@ -9,7 +9,9 @@ Moodle plugin which enhances the Moodle filepicker with a cropping functionality
 Requirements
 ------------
 
-This plugin requires Moodle 5.0+
+This plugin requires Moodle 5.0+ and is supported on Moodle 5.0 to 5.3.
+
+This repository is a fork of [moodle-an-hochschulen/moodle-tool_imagepicker](https://github.com/moodle-an-hochschulen/moodle-tool_imagepicker). It adds Moodle 5.3 support, a Brazilian Portuguese language pack (delivered to sites through AMOS, not in the package) and two element options which limit the size of a cropped image (`cropmaxwidth` and `cropmaxheight`, see below).
 
 
 Motivation for this plugin
@@ -89,10 +91,14 @@ $mform->addElement(element::TYPE, 'headerimage', get_string('headerimage', 'your
 ]);
 ```
 
-The element accepts all options of the file manager element plus two of its own:
+The element accepts all options of the file manager element plus four of its own:
 
 * enablecrop (bool): Whether the crop button is shown. Defaults to true. Without it, the element is a plain file manager which is restricted to a single web image.
 * cropaspectratio (float or null): The aspect ratio which the crop selection keeps, given as width divided by height. Defaults to null, which means free cropping.
+* cropmaxwidth (int or null): The largest width of a cropped image, in pixels. Defaults to null, which means no limit.
+* cropmaxheight (int or null): The largest height of a cropped image, in pixels. Defaults to null, which means no limit.
+
+The two size limits are meant to be the size at which the image is shown, so that a crop of a large photo is stored at its ideal size rather than at the resolution of the camera. A crop which exceeds a limit is scaled down until it fits inside both, keeping its aspect ratio; a crop which is smaller is never enlarged. The crop dialog tells the user about the limit. The limits are a convenience, not a limit the server enforces: an image which is uploaded and not cropped keeps its size, and a value which is not a positive number counts as no limit. A field for a link preview image, for example, takes `'cropaspectratio' => 1200 / 630, 'cropmaxwidth' => 1200`.
 
 As the element handles exactly one web image, some of the inherited file manager options are enforced and cannot be overridden: maxfiles is always 1, subdirs is always 0, and accepted_types is reduced to the file types which are covered by Moodle's web_image file type group. If your plugin passes other file types (or the wildcard for all file types), they are silently dropped; if no web image type is left, the whole web_image group is accepted.
 
@@ -115,6 +121,22 @@ Capabilities
 ------------
 
 This plugin does not add any additional capabilities.
+
+
+Database tables
+---------------
+
+This plugin adds one table:
+
+### tool_imagepicker_original
+
+The bookkeeping record of a preserved original image (see "Preserved originals" below): the context, component, file area and item id of the image it backs, the file it backs, the last crop region and the time it was last changed. It holds no user reference. A record lives as long as the cropped image it backs; the scheduled task removes it, together with the original file, once that image no longer exists. Nothing is written while the setting "Preserve original images" is disabled.
+
+
+Dependencies
+------------
+
+This plugin depends on no other plugin.
 
 
 Scheduled Tasks

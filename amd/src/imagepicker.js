@@ -130,6 +130,8 @@ class ReductionError extends Error {
  * @param {Object} config The element configuration.
  * @param {Boolean} config.enablecrop Whether the crop button is enabled.
  * @param {Number|null} config.cropaspectratio The aspect ratio to enforce when cropping (null for free cropping).
+ * @param {Number|null} config.cropmaxwidth The largest width of a cropped image, in pixels (null for no limit).
+ * @param {Number|null} config.cropmaxheight The largest height of a cropped image, in pixels (null for no limit).
  * @param {String[]} config.acceptedtypes The file types which the form element accepts.
  * @param {Boolean} config.preserveoriginals Whether the site preserves the uncropped original of a cropped image.
  * @param {Number} config.encodingquality The quality (0..1) with which a cropped image is encoded (for lossy formats).
@@ -658,6 +660,13 @@ const buildCropperBody = async(prepared, config) => {
     // sight, and that expectation does not hold here: the original stays on the server so the crop can be adjusted later, and
     // it remains readable for everyone who may edit this image. Telling the user beforehand is what lets them decide to crop
     // sensitive content locally instead.
+    // If the element limits the size of a cropped image, say so: a crop of a large photo comes out smaller than the region
+    // which was selected, and that is the point of the limit (the size the image is displayed at), not a loss.
+    const sizenotice = await getMaxSizeNotice(config);
+    if (sizenotice) {
+        body.append($('<div class="tool-imagepicker-notice text-center small mt-2"></div>').text(sizenotice));
+    }
+
     if (config.preserveoriginals) {
         const preservednotice = await getString('note_originalpreserved', 'tool_imagepicker');
         body.append($('<div class="tool-imagepicker-notice text-center small mt-2"></div>').text(preservednotice));
@@ -801,7 +810,7 @@ const saveCrop = async(cropper, config, draftitemid, image, sourcefilename, dime
     // selection at the size at which it happens to be displayed in the modal, which would make the resolution of the result
     // depend on the size of the browser window. So we ask for exactly those pixels of the source image which the selection
     // covers, which keeps the cropped image at the resolution of the source image.
-    let encoded = await encodeSelection(cropper, mimetype, getOutputSize(crop, dimensions), config.encodingquality);
+    let encoded = await encodeSelection(cropper, mimetype, getOutputSize(crop, dimensions, config), config.encodingquality);
 
     // Cropping does not necessarily make an image smaller: the browser re-encodes it, and that can make it considerably
     // bigger than the file it was cropped from (an indexed GIF which comes back as a plain PNG, for example). So the cropped
@@ -1102,17 +1111,51 @@ const getOutputFilename = (filename) => splitFilename(filename).basename + getEn
  * yields exactly those source pixels which the selection covers. Only the width is returned: the cropper derives the height
  * from the aspect ratio of the selection itself, which keeps a configured fixed aspect ratio exact.
  *
+ * If the element limits the size of a cropped image (config.cropmaxwidth, config.cropmaxheight), the region is scaled down
+ * until it fits inside both limits. It is never scaled up: a region smaller than the limits keeps its own pixels.
+ *
  * @param {Object|null} crop The crop region as fractions of the image ('x', 'y', 'width', 'height').
  * @param {Object} dimensions The natural 'width' and 'height' of the source image.
+ * @param {Object} config The element configuration.
  * @return {Object|undefined} The output size for $toCanvas(), or undefined if it cannot be determined.
  */
-const getOutputSize = (crop, dimensions) => {
+const getOutputSize = (crop, dimensions, config) => {
     // Without a usable region or a known image width, the cropper's own default output size has to do.
     if (!crop || !crop.width || !dimensions.width) {
         return undefined;
     }
 
-    return {width: Math.round(crop.width * dimensions.width)};
+    const width = crop.width * dimensions.width;
+    const height = crop.height * dimensions.height;
+    let factor = 1;
+    if (config.cropmaxwidth && width > config.cropmaxwidth) {
+        factor = Math.min(factor, config.cropmaxwidth / width);
+    }
+    if (config.cropmaxheight && height > config.cropmaxheight) {
+        factor = Math.min(factor, config.cropmaxheight / height);
+    }
+
+    // Rounded down when scaled, so that the result never exceeds a limit by a rounding pixel.
+    return {width: factor < 1 ? Math.max(1, Math.floor(width * factor)) : Math.round(width)};
+};
+
+/**
+ * Get the notice which tells the user that a cropped image is reduced to the size limits of the element.
+ *
+ * @param {Object} config The element configuration.
+ * @return {Promise<String|null>} The notice, or null if the element sets no size limit.
+ */
+const getMaxSizeNotice = async(config) => {
+    if (config.cropmaxwidth && config.cropmaxheight) {
+        return getString('note_maxsize', 'tool_imagepicker', {width: config.cropmaxwidth, height: config.cropmaxheight});
+    }
+    if (config.cropmaxwidth) {
+        return getString('note_maxwidth', 'tool_imagepicker', config.cropmaxwidth);
+    }
+    if (config.cropmaxheight) {
+        return getString('note_maxheight', 'tool_imagepicker', config.cropmaxheight);
+    }
+    return null;
 };
 
 /**
