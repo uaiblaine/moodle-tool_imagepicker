@@ -26,6 +26,7 @@
 namespace tool_imagepicker\local;
 
 use tool_imagepicker_generator as generator;
+use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests for the serving of the files of the plugin.
@@ -37,9 +38,8 @@ use tool_imagepicker_generator as generator;
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\local\fileserving
  */
+#[CoversClass(\tool_imagepicker\local\fileserving::class)]
 final class fileserving_test extends \advanced_testcase {
     /** @var generator The plugin generator. */
     private generator $generator;

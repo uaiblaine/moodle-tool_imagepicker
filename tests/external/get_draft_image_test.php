@@ -28,6 +28,7 @@ namespace tool_imagepicker\external;
 use tool_imagepicker_generator as generator;
 use core_external\external_api;
 use tool_imagepicker\local\originals;
+use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests for the external function which gets the image in a draft area.
@@ -36,9 +37,8 @@ use tool_imagepicker\local\originals;
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\external\get_draft_image
  */
+#[CoversClass(\tool_imagepicker\external\get_draft_image::class)]
 final class get_draft_image_test extends \advanced_testcase {
     /** @var generator The plugin generator. */
     private generator $generator;

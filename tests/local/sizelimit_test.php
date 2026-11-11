@@ -26,6 +26,8 @@
 namespace tool_imagepicker\local;
 
 use tool_imagepicker_generator as generator;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Tests for the file size limit of cropped images.
@@ -34,9 +36,8 @@ use tool_imagepicker_generator as generator;
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\local\sizelimit
  */
+#[CoversClass(\tool_imagepicker\local\sizelimit::class)]
 final class sizelimit_test extends \advanced_testcase {
     /** @var int A site limit which is well below what PHP allows, so that it is the one which applies. */
     private const SITE_LIMIT = 100000;
@@ -118,8 +119,8 @@ final class sizelimit_test extends \advanced_testcase {
      *
      * @param int $coursebytes The upload limit of the course.
      * @param int $expected The resulting limit.
-     * @dataProvider course_limit_provider
      */
+    #[DataProvider('course_limit_provider')]
     public function test_an_image_in_a_course_is_limited_by_the_course_limit(int $coursebytes, int $expected): void {
         $usercontext = $this->set_up_limited_user();
 

@@ -28,6 +28,8 @@ namespace tool_imagepicker\external;
 use tool_imagepicker_generator as generator;
 use core_external\external_api;
 use tool_imagepicker\local\originals;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Tests for the external function which replaces the image in a draft area.
@@ -36,9 +38,8 @@ use tool_imagepicker\local\originals;
  * @category   test
  * @copyright  2026 Alexander Bias, ssystems GmbH <abias@ssystems.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \tool_imagepicker\external\replace_draft_image
  */
+#[CoversClass(\tool_imagepicker\external\replace_draft_image::class)]
 final class replace_draft_image_test extends \advanced_testcase {
     /** @var generator The plugin generator. */
     private generator $generator;
@@ -335,8 +336,8 @@ final class replace_draft_image_test extends \advanced_testcase {
      * Content which is not a readable raster image is refused, and the image in the draft area is left untouched.
      *
      * @param string $filecontent The file content parameter.
-     * @dataProvider invalid_content_provider
      */
+    #[DataProvider('invalid_content_provider')]
     public function test_invalid_image_content_is_refused(string $filecontent): void {
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -366,8 +367,8 @@ final class replace_draft_image_test extends \advanced_testcase {
      * image in the draft area is left untouched.
      *
      * @param string $type The image type.
-     * @dataProvider unencodable_type_provider
      */
+    #[DataProvider('unencodable_type_provider')]
     public function test_an_unencodable_image_type_is_refused(string $type): void {
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -410,8 +411,8 @@ final class replace_draft_image_test extends \advanced_testcase {
      *
      * @param array $acceptedtypes The accepted file types.
      * @param bool $accepted Whether a PNG passes them.
-     * @dataProvider accepted_types_provider
      */
+    #[DataProvider('accepted_types_provider')]
     public function test_the_cropped_image_has_to_be_of_an_accepted_type(array $acceptedtypes, bool $accepted): void {
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -556,8 +557,8 @@ final class replace_draft_image_test extends \advanced_testcase {
      * @param float|null $y The y position of the region.
      * @param float|null $width The width of the region.
      * @param float|null $height The height of the region.
-     * @dataProvider invalid_crop_region_provider
      */
+    #[DataProvider('invalid_crop_region_provider')]
     public function test_an_invalid_crop_region_is_refused(?float $x, ?float $y, ?float $width, ?float $height): void {
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -641,8 +642,8 @@ final class replace_draft_image_test extends \advanced_testcase {
      * @param string $sourcefilename The file name of the image in the draft area.
      * @param string $type The type of the cropped image which the client sends ('png' or 'jpg').
      * @param string $expected The file name under which the cropped image is stored.
-     * @dataProvider cropped_filename_provider
      */
+    #[DataProvider('cropped_filename_provider')]
     public function test_the_cropped_image_is_named_after_its_source(string $sourcefilename, string $type, string $expected): void {
         global $USER;
 

@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tool_imagepicker';
-$plugin->version = 2026072000;
-$plugin->release = 'v5.0-r1';
+$plugin->version = 2026111100;
+$plugin->release = 'v5.3-r1';
 $plugin->requires = 2025041400;
-$plugin->supported = [500, 500];
+$plugin->supported = [500, 503];
 $plugin->maturity = MATURITY_STABLE;
